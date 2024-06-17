@@ -1,0 +1,85 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_U.h>
+#include <Servo.h>
+
+// BMP180 sensor object
+Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085); // Sensor object, 10085 is the sensor ID
+
+// Servo motor object
+Servo myServo;
+
+// Constants for standard sea level pressure and altitude at Bengaluru
+#define STANDARD_SEA_LEVEL_PRESSURE_HPA 1013.25 // Standard atmospheric pressure at sea level in hPa
+#define BENGALURU_LOCAL_PRESSURE_HPA 950.0 // Estimated local pressure at Bengaluru in hPa
+
+// Variables for altitude tracking
+float maxAltitude = 0.0; // Variable to store maximum altitude reached
+
+void setup() {
+    Serial.begin(9600);
+
+    // Initialize BMP180 sensor
+    if (!bmp.begin()) {
+        Serial.println("Could not find a valid BMP180 sensor, check wiring or modify I2C address!");
+        while (1);
+    }
+    Serial.println("BMP180 sensor found and initialized.");
+
+    // Attach servo to pin 9
+    myServo.attach(9);
+
+    // Start servo at 90 degrees
+    myServo.write(90);
+    delay(1000); // Delay to allow servo to reach initial position
+}
+
+void loop() {
+    // Read pressure and altitude from BMP180 sensor
+    sensors_event_t event;
+    bmp.getEvent(&event);
+
+    if (event.pressure) {
+        float pressure_hPa = event.pressure / 100.0F; // Convert Pa to hPa
+        Serial.print("Pressure: ");
+        Serial.print(pressure_hPa);
+        Serial.println(" hPa");
+
+        // Calculate altitude based on local pressure at Bengaluru
+        float altitude_m = bmp.pressureToAltitude(BENGALURU_LOCAL_PRESSURE_HPA, event.pressure);
+        Serial.print("Altitude: ");
+        Serial.print(altitude_m);
+        Serial.println(" meters");
+
+        // Track maximum altitude
+        if (altitude_m > maxAltitude) {
+            maxAltitude = altitude_m;
+        }
+
+        // Control servo based on altitude
+        if (altitude_m > 750) {
+            // If altitude is above 1000 meters, move servo to 0 degrees
+            myServo.write(0);
+            Serial.println("Servo moved to 0 degrees.");
+        } 
+        else {
+            // Otherwise, move servo to 90 degrees
+            myServo.write(90);
+            Serial.println("Servo moved to 90 degrees.");
+        }
+
+        // Check if altitude has started decreasing (indicating descent)
+        if (altitude_m < maxAltitude*0.99 && maxAltitude > 0) {
+            // Rocket has reached peak altitude, spin servo or perform action
+            myServo.write(180); // Spin servo to 180 degrees or any action you want
+            Serial.println("Rocket reached peak altitude, servo spinning.");
+           
+            // Reset maxAltitude to prepare for next flight
+            maxAltitude = 0.0;
+        }
+    } else {
+        Serial.println("Sensor data not available");
+    }
+
+    delay(1000); // Delay between readings
+}
