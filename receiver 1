@@ -1,0 +1,43 @@
+#include <SPI.h>
+#include <LoRa.h>
+
+void setup() {
+  Serial.begin(9600);
+  while (!Serial); // Wait for serial port to connect (required for native USB port)
+
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) { // Ensure the frequency matches your module's specification
+    Serial.println("Starting LoRa failed!");
+    while (1); // Infinite loop to halt execution if initialization fails
+  }
+  
+  // Set LoRa parameters
+  LoRa.setSyncWord(0x12); // Sync word for distinguishing your network
+  LoRa.setCodingRate4(8); // Error coding rate (5) for moderate error correction
+  LoRa.setSpreadingFactor(12); // Spreading factor (7) for better range and robustness
+  LoRa.setSignalBandwidth(250E3); // Signal bandwidth (125 kHz) to match your setup
+
+  Serial.println("LoRa initialized.");
+}
+
+void loop() {
+  // Try to parse packet
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    Serial.println("Packet received!");
+    
+    // Read packet
+    String receivedData = "";
+    while (LoRa.available()) {
+      receivedData += (char)LoRa.read();
+    }
+
+    // Print received data
+    Serial.print("Received: ");
+    Serial.println(receivedData);
+  } else {
+    Serial.println("No packet received...");
+  }
+  
+  delay(2000); // Delay to avoid flooding the serial output
+}
