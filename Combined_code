@@ -1,0 +1,183 @@
+//receiver
+#include <SPI.h>
+#include <LoRa.h>
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) { // Ensure the frequency matches your module's specification
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(5);
+  LoRa.setSpreadingFactor(7);
+  LoRa.setSignalBandwidth(125E3);
+  Serial.println("LoRa initialized.");
+}
+
+void loop() {
+  // Try to parse packet
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    Serial.println("Packet received!");
+    
+    // Read packet
+    String receivedData = "";
+    while (LoRa.available()) {
+      receivedData += (char)LoRa.read();
+    }
+
+    // Print received data
+    Serial.println("Received: ");
+    Serial.println(receivedData);
+  } else {
+    Serial.println("No packet received...");
+  }
+
+  delay(10); // Adjusted delay for readability and processing efficiency
+}
+
+
+//********************************************************************************************************
+
+//transmitter
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_U.h>
+#include <Adafruit_MPU6050.h>
+#include <SPI.h>
+#include <LoRa.h>
+#include <Servo.h>
+
+// Create objects for BMP180 and MPU6050 sensors
+Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
+Adafruit_MPU6050 mpu;
+Servo myServo;
+
+// Constants for standard sea level pressure and altitude at Bengaluru
+#define BENGALURU_LOCAL_PRESSURE_HPA 950.0 // Estimated local pressure at Bengaluru in hPa
+
+// Variables for altitude tracking
+float maxAltitude = 0.0; // Variable to store maximum altitude reached
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+  Wire.begin();
+  
+  // Initialize BMP180
+  if (!bmp.begin()) {
+    Serial.println("Could not find a valid BMP180 sensor, check wiring or modify I2C address!");
+    while (1);
+  }
+  Serial.println("BMP180 sensor found and initialized.");
+
+  // Initialize MPU6050
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip, check wiring or address!");
+    while (1);
+  } else {
+    Serial.println("MPU6050 sensor found!");
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  }
+  
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(5);
+  LoRa.setSpreadingFactor(7);
+  LoRa.setSignalBandwidth(125E3);
+  Serial.println("LoRa initialized.");
+
+  // Attach servo to pin 9
+  myServo.attach(9);
+
+  // Start servo at 90 degrees
+  myServo.write(90);
+  delay(1000); // Delay to allow servo to reach initial position
+}
+
+void loop() {
+  // Read data from MPU6050
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  // Read data from BMP180
+  sensors_event_t event;
+  bmp.getEvent(&event);
+
+  if (event.pressure) {
+    float pressure_hPa = event.pressure / 100.0F; // Convert Pa to hPa
+    float altitude_m = bmp.pressureToAltitude(BENGALURU_LOCAL_PRESSURE_HPA, event.pressure);
+
+    // Track maximum altitude
+    if (altitude_m > maxAltitude) {
+      maxAltitude = altitude_m;
+    }
+
+    // Control servo based on altitude
+    if (altitude_m > 750) {
+      // If altitude is above 750 meters, move servo to 0 degrees
+      myServo.write(0);
+      Serial.println("Servo moved to 0 degrees.");
+    } else {
+      // Otherwise, move servo to 90 degrees
+      myServo.write(90);
+      Serial.println("Servo moved to 90 degrees.");
+    }
+
+    // Check if altitude has started decreasing (indicating descent)
+    if (altitude_m < maxAltitude * 0.99 && maxAltitude > 0) {
+      // Rocket has reached peak altitude, spin servo or perform action
+      myServo.write(180); // Spin servo to 180 degrees or any action you want
+      Serial.println("Rocket reached peak altitude, servo spinning.");
+      
+      // Reset maxAltitude to prepare for next flight
+      maxAltitude = 0.0;
+    }
+
+    // Prepare data for transmission
+    int ax = a.acceleration.x;
+    int ay = a.acceleration.y;
+    int az = a.acceleration.z;
+    int gx = g.gyro.x;
+    int gy = g.gyro.y;
+    int gz = g.gyro.z;
+    int temp1 = temp.temperature;
+    int pr = event.pressure;
+    int temp2 = bmp.getTemperature();
+    int Temp = (temp1 + temp2) / 2;
+
+    String data = String("Acc - x: ") + ax + 
+                  "\nAcc - y: " + ay + 
+                  "\nAcc - z: " + az + 
+                  "\nGyro - x: " + gx + 
+                  "\nGyro - y: " + gy + 
+                  "\nGyro - z: " + gz + 
+                  "\nTemperature: " + Temp + 
+                  "\nPressure: " + pr + 
+                  "\nAltitude: " + altitude_m;
+
+    Serial.println(data); // Print data for debugging
+
+    // Send data via LoRa
+    LoRa.beginPacket();
+    LoRa.print(data);
+    LoRa.endPacket();
+    Serial.println("Data sent!");
+  } else {
+    Serial.println("Sensor data not available");
+  }
+
+  delay(2000); // Delay between readings
+}
