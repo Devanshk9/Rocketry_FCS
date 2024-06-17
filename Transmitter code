@@ -1,4 +1,4 @@
-//Transmitter FINAL
+//Reciever
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP085.h>
@@ -34,15 +34,16 @@ void setup() {
   
   // Initialize LoRa
   Serial.println("Initializing LoRa...");
-  if (!LoRa.begin(433E6)) {
+  if (!LoRa.begin(915E6)) {
     Serial.println("Starting LoRa failed!");
     while (1);
   }
   LoRa.setSyncWord(0x77);
+  Serial.println("LoRa initialized.");
+
   LoRa.setCodingRate4(5);
   LoRa.setSpreadingFactor(7);
   LoRa.setSignalBandwidth(125E3);
-  Serial.println("LoRa initialized.");
 }
 
 void loop() {
@@ -78,5 +79,5 @@ void loop() {
   LoRa.endPacket();
   Serial.println("Data sent!");
 
-  delay(2000); // Delay for readability
+  delay(1000); // Delay for readability
 }
