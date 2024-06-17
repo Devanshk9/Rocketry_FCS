@@ -1,0 +1,82 @@
+//Transmitter FINAL
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085.h>
+#include <Adafruit_MPU6050.h>
+#include <SPI.h>
+#include <LoRa.h>
+
+// Create objects for BMP and MPU sensors
+Adafruit_BMP085 bmp;
+Adafruit_MPU6050 mpu;
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+  Wire.begin();
+  
+  // Initialize BMP280
+  if (!bmp.begin()) {
+    Serial.println("Could not find a valid BMP280 sensor, check wiring or address!");
+  } else {
+    Serial.println("BMP085 sensor found!");
+  }
+
+  // Initialize MPU6050
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip, check wiring or address!");
+  } else {
+    Serial.println("MPU6050 sensor found!");
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  }
+  
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(5);
+  LoRa.setSpreadingFactor(7);
+  LoRa.setSignalBandwidth(125E3);
+  Serial.println("LoRa initialized.");
+}
+
+void loop() {
+  // Read and print data from BMP280
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  int ax = a.acceleration.x;
+  int ay = a.acceleration.y;
+  int az = a.acceleration.z;
+  int gx = g.gyro.x;
+  int gy = g.gyro.y;
+  int gz = g.gyro.z;
+  int temp1 = temp.temperature;
+  int pr = bmp.readPressure();
+  int alt = bmp.readAltitude();
+  int temp2 = bmp.readTemperature();
+  int Temp = (temp1 + temp2) / 2;
+
+  String data = String("Acc - x: ") + ax + 
+                "\nAcc - y: " + ay + 
+                "\nAcc - z: " + az + 
+                "\nGyro - x: " + gx + 
+                "\nGyro - y: " + gy + 
+                "\nGyro - z: " + gz + 
+                "\nTemperature: " + Temp + 
+                "\nPressure: " + pr;
+
+  Serial.println(data); // Print data for debugging
+
+  LoRa.beginPacket();
+  LoRa.print(data);
+  LoRa.endPacket();
+  Serial.println("Data sent!");
+
+  delay(2000); // Delay for readability
+}
