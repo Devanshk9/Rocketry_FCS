@@ -132,6 +132,7 @@ sensors_event_t event;
                 "\nGyro - z: " + gz + 
                 "\nTemperature: " + Temp + 
                 "\nPressure: " + pr;
+               "\nAltitude: " + altitude_m;
 
   Serial.println(data); // Print data for debugging
 
