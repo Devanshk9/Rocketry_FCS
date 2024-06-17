@@ -76,6 +76,7 @@ void loop() {
   int alt = bmp.readAltitude();
   int temp2 = bmp.readTemperature();
   int Temp = (temp1 + temp2) / 2;
+  string s;
 
 sensors_event_t event;
     bmp.getEvent(&event);
@@ -131,8 +132,9 @@ sensors_event_t event;
                 "\nGyro - y: " + gy + 
                 "\nGyro - z: " + gz + 
                 "\nTemperature: " + Temp + 
-                "\nPressure: " + pr;
-               "\nAltitude: " + altitude_m;
+                "\nPressure: " + pr +
+                "\nAltitude: " + alt;
+
 
   Serial.println(data); // Print data for debugging
 
