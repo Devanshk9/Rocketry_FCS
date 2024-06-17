@@ -1,6 +1,22 @@
 #include <SPI.h>
 #include <LoRa.h>
 
+void onReceive(int packetSize) {
+  if (packetSize == 0) {
+    return; // If no packet received, exit
+  }
+
+  // Read packet
+  String receivedData = "";
+  while (LoRa.available()) {
+    receivedData += (char)LoRa.read();
+  }
+
+  // Print received data
+  Serial.println("Received:");
+  Serial.println(receivedData);
+}
+
 void setup() {
   Serial.begin(9600);
   
@@ -13,25 +29,18 @@ void setup() {
   LoRa.setCodingRate4(5);
   LoRa.setSpreadingFactor(7);
   LoRa.setSignalBandwidth(125E3);
+
+  // Set callback for receiving data
+  LoRa.onReceive(onReceive);
+
+  // Enable reception
+  LoRa.receive();
+
   Serial.println("LoRa initialized.");
 }
 
 void loop() {
-  // Try to parse packet
-  int packetSize = LoRa.parsePacket();
-  if (packetSize) {
-    Serial.println("Packet received!");
-    // Read packet
-    String receivedData = "";
-    while (LoRa.available()) {
-      receivedData += (char)LoRa.read();
-    }
-
-    // Print received data
-    Serial.println("Received: ");
-    Serial.println(receivedData);
-  } else {
-    Serial.println("No packet received...");
-  }
-  delay(1000);
+  // Handle other tasks in loop if needed
+  // No need to parse packets manually, LoRa.onReceive callback will handle it
+  delay(1000); // Adjust delay as needed
 }
