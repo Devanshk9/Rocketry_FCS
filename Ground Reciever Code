@@ -1,0 +1,40 @@
+//Reciever FINAL
+#include <SPI.h>
+#include <LoRa.h>
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+  
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) { // Ensure the frequency matches your module's specification
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(5);
+  LoRa.setSpreadingFactor(7);
+  LoRa.setSignalBandwidth(125E3);
+  Serial.println("LoRa initialized.");
+}
+
+void loop() {
+  // Try to parse packet
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    Serial.println("Packet received!");
+    // Read packet
+    String receivedData = "";
+    while (LoRa.available()) {
+      receivedData += (char)LoRa.read();
+    }
+
+    // Print received data
+    Serial.println("Received: ");
+    Serial.println(receivedData);
+  } else {
+    Serial.println("No packet received...");
+  }
+  delay(010);
+}
