@@ -110,15 +110,15 @@ void loop() {
   int temp2 = bmp.readTemperature();
   int Temp = (temp1 + temp2) / 2;
 
-  String data = String("Acc - x: ") + ax + 
-                "\nAcc - y: " + ay + 
-                "\nAcc - z: " + az + 
-                "\nGyro - x: " + gx + 
-                "\nGyro - y: " + gy + 
-                "\nGyro - z: " + gz + 
-                "\nTemperature: " + Temp + 
-                "\nPressure: " + pr + 
-                "\nAltitude: " + altitude_m;
+  String data = String("Acc - x: ") +" "+ ax + 
+                " "+ "Acc - y: " + ay + 
+                " "+ "Acc - z: " + az + 
+                " "+ "Gyro - x: " + gx + 
+                " "+ "Gyro - y: "+ gy + 
+                " "+ "Gyro - z: " + gz + 
+                " "+ "Temperature: "+ Temp + 
+                " "+ "Pressure: " + pr + 
+                " "+ "Altitude: " + altitude_m;
 
   Serial.println(data); // Print data for debugging
 
