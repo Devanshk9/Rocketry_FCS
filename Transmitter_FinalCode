@@ -70,7 +70,7 @@ void loop() {
 
   // Read data from BMP180
   float pressure_hPa = bmp.readPressure() / 100.0F; // Convert Pa to hPa
-  float altitude_m = bmp.readAltitude(BENGALURU_LOCAL_PRESSURE_HPA);
+  float altitude_m = bmp.readAltitude(BENGALURU_LOCAL_PRESSURE_HPA)+61500;
 
   // Track maximum altitude
   if (altitude_m > maxAltitude) {
@@ -89,7 +89,7 @@ void loop() {
   }
 
   // Check if altitude has started decreasing (indicating descent)
-  if (altitude_m < maxAltitude * 0.99 && maxAltitude > 0) {
+  if (altitude_m < maxAltitude*0.99 && maxAltitude > 0) {
     // Rocket has reached peak altitude, spin servo or perform action
     myServo.write(180); // Spin servo to 180 degrees or any action you want
     Serial.println("Rocket reached peak altitude, servo spinning.");
