@@ -70,7 +70,7 @@ void loop() {
 
   // Read data from BMP180
   float pressure_hPa = bmp.readPressure() / 100.0F; // Convert Pa to hPa
-  float altitude_m = bmp.readAltitude(BENGALURU_LOCAL_PRESSURE_HPA)+61500;
+  float altitude_m = bmp.readAltitude(/*BENGALURU_LOCAL_PRESSURE_HPA*/)/*+61500*/;
 
   // Track maximum altitude
   if (altitude_m > maxAltitude) {
