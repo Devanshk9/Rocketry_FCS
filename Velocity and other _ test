@@ -122,7 +122,7 @@ void loop() {
     float pr = event.pressure;
 
     //Calculating velocity and angle
-    currTime = millis();
+    int currTime = millis();
     Vx += ax*(currTime - prevTime);
     Vy += ay*(currTime - prevTime);
     Vz += az*(currTime - prevTime);
@@ -139,16 +139,39 @@ void loop() {
 
 void send(int time, int vx, int vy, int vz, int v, int ax, int ay , int az , int ox, int oy, int oz, float pr){
   Serial.println("Sending packet...");
+//    " "+ vx + 
+//              " "+ "Acc - y: " + vy + 
+//              " "+ "Acc - z: " + vz + 
+//              " "+ "Gyro - x: " + v + 
+//              " "+ "Gyro - y: "+ ax + 
+//              " "+ "Gyro - z: " + ay + 
+//              " "+ "Temperature: "+ ox + 
+//              " "+ "Pressure: " + oy + 
+//              " "+ "Altitude: " + oz +
+//              " "+ "ServoAngle: " + Temp+
+//              " "+ "Pressure: " + pr + 
+//              " "+ "Altitude: " + altitude_m +
+//                " "+ "ServoAngle: " + peakalt;
+
+               String data =  "Acc - x: " + String(vx) +
+              " " + "Acc - y: " + String(vy) +
+//              " " + "Acc - z: " + String(vz) +
+//              " " + "Gyro - x: " + String(v) +
+//              " " + "Gyro - y: " + String(ax) +
+//              " " + "Gyro - z: " + String(ay) +
+//              " " + "Temperature: " + String(ox) +
+//              " " + "Pressure: " + String(oy) +
+//              " " + "Altitude: " + String(oz) ;
+              " " + "Altitude: " + String(Temp)+
+              " " + "Altitude: " + String(pr) +
+              " " + "Altitude: " + String(altitude_m) +
+             " " + "ServoAngle: " + String(peakalt);
+   Serial.print("HELLO");
+ Serial.println(data); // Print data for debugging
+ Serial.print("HELLO");
   LoRa.beginPacket();
-  LoRa.print(time + "," + vx + "," + vy + "," + vz + "," + v + "," + ax + 
-             "," + ay +
-             "," + az +
-             "," + ox +
-             "," + oy +
-             "," + oz +
-             "," + Temp +
-             "," + pr +
-             "," + altitude_m +
-             "," + peakalt);
+ LoRa.print(data);
   LoRa.endPacket();
+
+  delay(2000);
 }
