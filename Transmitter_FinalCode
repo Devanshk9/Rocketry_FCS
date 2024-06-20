@@ -121,7 +121,7 @@ void loop() {
                 " "+ "Temperature: "+ Temp + 
                 " "+ "Pressure: " + pr + 
                 " "+ "Altitude: " + altitude_m +
-                " "+ "ServoAngle: " + ServoRotation;
+                " "+ "ServoAngle: " + servoRotation;
 
   Serial.println(data); // Print data for debugging
 
