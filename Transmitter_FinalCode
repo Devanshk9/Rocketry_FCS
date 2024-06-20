@@ -1,5 +1,3 @@
-//********************************************************************************************************
-
 // Transmitter
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -19,6 +17,7 @@ Servo myServo;
 
 // Variables for altitude tracking
 float maxAltitude = 0.0; // Variable to store maximum altitude reached
+int servoRotation = 90; // Variable to store the current servo angle
 
 void setup() {
   // Start serial communication for debugging
@@ -59,7 +58,8 @@ void setup() {
   myServo.attach(5);
 
   // Start servo at 90 degrees
-  myServo.write(90);
+  myServo.write(servoRotation);
+  
   delay(1000); // Delay to allow servo to reach initial position
 }
 
@@ -77,21 +77,23 @@ void loop() {
     maxAltitude = altitude_m;
   }
 
-  // Control servo based on altitude
-  if (altitude_m > 750) {
+ if (altitude_m > 750) {
     // If altitude is above 750 meters, move servo to 0 degrees
-    myServo.write(0);
+    servoRotation = 0;
+    myServo.write(servoRotation);
     Serial.println("Servo moved to 0 degrees.");
   } else {
     // Otherwise, move servo to 90 degrees
-    myServo.write(90);
+    servoRotation = 90;
+    myServo.write(servoRotation);
     Serial.println("Servo moved to 90 degrees.");
   }
 
   // Check if altitude has started decreasing (indicating descent)
   if (altitude_m < maxAltitude*0.99 && maxAltitude > 0) {
     // Rocket has reached peak altitude, spin servo or perform action
-    myServo.write(180); // Spin servo to 180 degrees or any action you want
+    servoRotation = 180; // Spin servo to 180 degrees or any action you want
+    myServo.write(servoRotation);
     Serial.println("Rocket reached peak altitude, servo spinning.");
     
     // Reset maxAltitude to prepare for next flight
@@ -118,7 +120,8 @@ void loop() {
                 " "+ "Gyro - z: " + gz + 
                 " "+ "Temperature: "+ Temp + 
                 " "+ "Pressure: " + pr + 
-                " "+ "Altitude: " + altitude_m;
+                " "+ "Altitude: " + altitude_m +
+                " "+ "ServoAngle: " + ServoRotation;
 
   Serial.println(data); // Print data for debugging
 
