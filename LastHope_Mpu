@@ -1,0 +1,10 @@
+void mpu_data(){
+
+   sensors_event_t a, g, temp;
+   mpu.getEvent(&a, &g, &temp);
+
+  // Read data from BMP180
+  float pressure_hPa = bmp.readPressure() / 100.0F; // Convert Pa to hPa
+  altitude_m = bmp.readAltitude(/*BENGALURU_LOCAL_PRESSURE_HPA*/)/*+61500*/;
+
+}
