@@ -1,0 +1,29 @@
+void Altitude(){
+   // Track maximum altitude
+  if (altitude_m > maxAltitude) {
+    maxAltitude = altitude_m;
+  }
+
+  if (altitude_m > 750) {
+    // If altitude is above 750 meters, move servo to 0 degrees
+    servoRotation = 0;
+    myServo.write(servoRotation);
+    Serial.println("Servo moved to 0 degrees.");
+  } else {
+    // Otherwise, move servo to 90 degrees
+    servoRotation = 90;
+    myServo.write(servoRotation);
+    Serial.println("Servo moved to 90 degrees.");
+  }
+
+  // Check if altitude has started decreasing (indicating descent)
+  if (altitude_m < maxAltitude * 0.99 && maxAltitude > 0) {
+    // Rocket has reached peak altitude, spin servo or perform action
+    servoRotation = 180; // Spin servo to 180 degrees or any action you want
+    myServo.write(servoRotation);
+    Serial.println("Rocket reached peak altitude, servo spinning.");
+    
+    // Reset maxAltitude to prepare for next flight
+    maxAltitude = 0.0;
+  }
+}
