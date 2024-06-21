@@ -1,0 +1,94 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <SPI.h>
+#include <LoRa.h>
+
+#define BMP_SDA 21   // Pin number for BMP280 SDA
+#define BMP_SCL 22   // Pin number for BMP280 SCL
+#define LORA_SCK 5   // Pin number for LoRa SCK
+#define LORA_CS 18   // Pin number for LoRa CS
+#define LORA_MISO 19 // Pin number for LoRa MISO
+#define LORA_MOSI 27 // Pin number for LoRa MOSI
+#define LORA_RST 14  // Pin number for LoRa RST
+#define LORA_DI0 26  // Pin number for LoRa DI0
+
+// Initialize BMP280
+Adafruit_BMP280 bmp;
+float baselinePressure; // Variable to store baseline pressure for altitude calculation
+
+// Initialize MPU6050
+Adafruit_MPU6050 mpu;
+float pitchAngle;
+
+void setup() {
+  Serial.begin(9600);
+
+  // Initialize BMP280
+  if (!bmp.begin()) {
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
+    while (1);
+  }
+  baselinePressure = bmp.readPressure(); // Read baseline pressure
+
+  // Initialize MPU6050
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1);
+  }
+
+  // Initialize LoRa
+  SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
+  LoRa.setPins(LORA_CS, LORA_RST, LORA_DI0);
+  
+  if (!LoRa.begin(915E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+}
+
+void loop() {
+  readAltitude();
+  readPitchAngle();
+  sendData();
+  delay(1000); // Adjust delay as needed
+}
+
+void readAltitude() {
+  // Read altitude from BMP280
+  float altitude = bmp.readAltitude(baselinePressure);
+  Serial.print("Altitude: ");
+  Serial.print(altitude);
+  Serial.println(" meters");
+}
+
+void readPitchAngle() {
+  // Read pitch angle from MPU6050
+  sensors_event_t accel, gyro;
+  mpu.getEvent(&accel, &gyro, NULL);
+  
+  float pitch = atan2(-accel.acceleration.x, sqrt(accel.acceleration.y * accel.acceleration.y + accel.acceleration.z * accel.acceleration.z));
+  pitchAngle = pitch * 180.0 / PI;
+  Serial.print("Pitch Angle: ");
+  Serial.print(pitchAngle);
+  Serial.println(" degrees");
+}
+
+void sendData() {
+  // Prepare data to send via LoRa
+  String data = "Altitude: " + String(bmp.readAltitude(baselinePressure)) + " meters, Pitch Angle: " + String(pitchAngle) + " degrees";
+
+  // Convert data to char array
+  char charBuf[data.length() + 1];
+  data.toCharArray(charBuf, data.length() + 1);
+
+  // Send data via LoRa
+  LoRa.beginPacket();
+  LoRa.print(charBuf);
+  LoRa.endPacket();
+
+  Serial.println("Data sent via LoRa: ");
+  Serial.println(charBuf);
+}
