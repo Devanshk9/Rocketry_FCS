@@ -1,0 +1,158 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085.h>
+#include <Adafruit_MPU6050.h>
+#include <SPI.h>
+#include <LoRa.h>
+#include <Servo.h>
+
+// Create objects for BMP180 and MPU6050 sensors
+Adafruit_BMP085 bmp;
+Adafruit_MPU6050 mpu;
+Servo myServo;
+
+// Constants for standard sea level pressure and altitude at Bengaluru
+#define BENGALURU_LOCAL_PRESSURE_HPA 950.0 // Estimated local pressure at Bengaluru in hPa
+
+// Variables for altitude tracking
+float maxAltitude = 0.0; // Variable to store maximum altitude reached
+int servoRotation = 90; // Variable to store the current servo angle
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+  Wire.begin();
+  
+  // Initialize BMP180
+  if (!bmp.begin()) {
+    Serial.println("Could not find a valid BMP180 sensor, check wiring or address!");
+    while (1);
+  }
+  Serial.println("BMP180 sensor found and initialized.");
+
+  // Initialize MPU6050
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip, check wiring or address!");
+    while (1);
+  } else {
+    Serial.println("MPU6050 sensor found!");
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  }
+  
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(8);
+  LoRa.setSpreadingFactor(12);
+  LoRa.setSignalBandwidth(150E3);
+  Serial.println("LoRa initialized.");
+
+  // Attach servo to pin 9
+  myServo.attach(5);
+
+  // Start servo at 90 degrees
+  myServo.write(servoRotation);
+  
+  delay(1000); // Delay to allow servo to reach initial position
+}
+
+void loop() {
+  // Read data from MPU6050
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  // Read data from BMP180
+  float pressure_hPa = bmp.readPressure() / 100.0F; // Convert Pa to hPa
+  float altitude_m = bmp.readAltitude(/*BENGALURU_LOCAL_PRESSURE_HPA*/)/*+61500*/;
+
+  // Track maximum altitude
+  if (altitude_m > maxAltitude) {
+    maxAltitude = altitude_m;
+  }
+
+  if (altitude_m > 750) {
+    // If altitude is above 750 meters, move servo to 0 degrees
+    servoRotation = 0;
+    myServo.write(servoRotation);
+    Serial.println("Servo moved to 0 degrees.");
+  } else {
+    // Otherwise, move servo to 90 degrees
+    servoRotation = 90;
+    myServo.write(servoRotation);
+    Serial.println("Servo moved to 90 degrees.");
+  }
+
+  // Check if altitude has started decreasing (indicating descent)
+  if (altitude_m < maxAltitude * 0.99 && maxAltitude > 0) {
+    // Rocket has reached peak altitude, spin servo or perform action
+    servoRotation = 180; // Spin servo to 180 degrees or any action you want
+    myServo.write(servoRotation);
+    Serial.println("Rocket reached peak altitude, servo spinning.");
+    
+    // Reset maxAltitude to prepare for next flight
+    maxAltitude = 0.0;
+  }
+
+  // Prepare data for transmission
+  int ax = a.acceleration.x * 100; // Convert to int with scaling
+  int ay = a.acceleration.y * 100;
+  int az = a.acceleration.z * 100;
+  int gx = g.gyro.x * 100;
+  int gy = g.gyro.y * 100;
+  int gz = g.gyro.z * 100;
+  int temp1 = temp.temperature * 100;
+  int pr = bmp.readPressure();
+  int temp2 = bmp.readTemperature() * 100;
+  int Temp = (temp1 + temp2) / 2;
+  int altitude_cm = altitude_m * 100; // Convert meters to centimeters for better precision
+
+  // Create a data array
+  uint8_t data[28];
+  
+  // Fill data array with sensor readings
+  data[0] = (ax >> 8) & 0xFF;
+  data[1] = ax & 0xFF;
+  data[2] = (ay >> 8) & 0xFF;
+  data[3] = ay & 0xFF;
+  data[4] = (az >> 8) & 0xFF;
+  data[5] = az & 0xFF;
+  data[6] = (gx >> 8) & 0xFF;
+  data[7] = gx & 0xFF;
+  data[8] = (gy >> 8) & 0xFF;
+  data[9] = gy & 0xFF;
+  data[10] = (gz >> 8) & 0xFF;
+  data[11] = gz & 0xFF;
+  data[12] = (Temp >> 8) & 0xFF;
+  data[13] = Temp & 0xFF;
+  data[14] = (pr >> 24) & 0xFF;
+  data[15] = (pr >> 16) & 0xFF;
+  data[16] = (pr >> 8) & 0xFF;
+  data[17] = pr & 0xFF;
+  data[18] = (altitude_cm >> 24) & 0xFF;
+  data[19] = (altitude_cm >> 16) & 0xFF;
+  data[20] = (altitude_cm >> 8) & 0xFF;
+  data[21] = altitude_cm & 0xFF;
+  data[22] = (servoRotation >> 8) & 0xFF;
+  data[23] = servoRotation & 0xFF;
+
+  Serial.print("Data array: ");
+  for (int i = 0; i < 24; i++) {
+    Serial.print(data[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+
+  // Send data array via LoRa
+  LoRa.beginPacket();
+  LoRa.write(data, sizeof(data));
+  LoRa.endPacket();
+  Serial.println("Data sent!");
+
+  delay(2000); // Delay between readings
+}
