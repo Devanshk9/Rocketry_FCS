@@ -21,7 +21,7 @@ int servoRotation = 90; // Variable to store the current servo angle
 
 void setup() {
   // Start serial communication for debugging
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   
   // Initialize BMP180
@@ -49,9 +49,9 @@ void setup() {
     while (1);
   }
   LoRa.setSyncWord(0x77);
-  LoRa.setCodingRate4(8);
-  LoRa.setSpreadingFactor(12);
-  LoRa.setSignalBandwidth(150E3);
+  LoRa.setCodingRate4(5);
+  LoRa.setSpreadingFactor(7);
+  LoRa.setSignalBandwidth(500E3);
   Serial.println("LoRa initialized.");
 
   // Attach servo to pin 9
@@ -131,5 +131,5 @@ void loop() {
   LoRa.endPacket();
   Serial.println("Data sent!");
 
-  delay(2000); // Delay between readings
+  delay(1); // Delay between readings
 }
