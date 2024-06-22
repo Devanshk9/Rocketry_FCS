@@ -21,7 +21,7 @@ void setup() {
   LoRa.setSpreadingFactor(7);     // Lower spreading factor for higher data rate
   LoRa.setSignalBandwidth(500E3); // Higher bandwidth for higher data rate
   Serial.println("LoRa initialized.");
-  Serial.println("LoRa initialized.");
+  // Serial.println("LoRa initialized.");
 }
 
 void loop() {
@@ -40,7 +40,7 @@ void loop() {
     Serial.println(receivedData);
     Serial.println();
   } 
-  delay(1); // Delay to avoid flooding the serial output
+  delay(50); // Delay to avoid flooding the serial output
   
  
 }
