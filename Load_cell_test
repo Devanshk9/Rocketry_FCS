@@ -1,0 +1,31 @@
+#include <HX711.h>
+
+// Define HX711 data pins (adjust as needed)
+const int DOUT_PIN = 3;
+const int SCK_PIN = 13;
+
+// Define calibration factor (grams per raw reading) - Replace with your calibration value
+const double CALIBRATION_FACTOR = 100.0 *2045/(1463.0 * 9.8); // grams/raw count (adjust based on calibration)
+
+HX711 scale;
+
+void setup() 
+{
+  Serial.begin(9600);
+  scale.begin(DOUT_PIN, SCK_PIN);
+  scale.set_scale(CALIBRATION_FACTOR); // Set calibration factor during startup
+}
+
+void loop() 
+{
+  long reading = scale.get_units(10); // Read weight with 10 samples for stability
+
+  // Print time and weight in separate lines for CSV compatibility
+  Serial.print(millis());
+  Serial.print(",");
+  Serial.print(reading - 1170);
+//  Serial.print(reading - 1170/CALIBRATION_FACTOR);
+  Serial.println("");
+
+//  delay(1); // Delay for 100 milliseconds
+}
