@@ -1,0 +1,40 @@
+
+#include "HX711.h"
+
+// HX711 circuit wiring
+#define LOADCELL_DOUT_PIN1  3
+#define LOADCELL_SCK_PIN    13
+#define LOADCELL_DOUT_PIN2  5
+
+HX711 scale1;
+HX711 scale2;
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Initialize the first HX711 module
+  scale1.begin(LOADCELL_DOUT_PIN1, LOADCELL_SCK_PIN);
+  // Initialize the second HX711 module
+  scale2.begin(LOADCELL_DOUT_PIN2, LOADCELL_SCK_PIN);
+}
+
+void loop() {
+  if (scale1.is_ready()) {
+    long reading1 = scale1.read();
+    Serial.print("Reading 1: ");
+      Serial.println((reading1-16041.9135)/103.3376);
+    //Serial.println(reading1);
+  } else {
+    Serial.println("HX711 not found (scale 1).");
+  }
+  
+  /*if (scale2.is_ready()) {
+    long reading2 = scale2.read();
+    Serial.print("Reading 2: ");
+    Serial.println(reading2);
+  } else {
+    Serial.println("HX711 not found (scale 2).");
+  }*/
+ 
+  delay(1000); // Wait for a second
+}
