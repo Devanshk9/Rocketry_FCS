@@ -22,7 +22,7 @@ void loop() {
   if (scale1.is_ready()) {
     long reading1 = scale1.read();
     Serial.print("Reading 1: ");
-      Serial.println((reading1-16041.9135)/103.3376);
+      Serial.println(((reading1-16041.9135)/103.3376)*9.8);
     //Serial.println(reading1);
   } else {
     Serial.println("HX711 not found (scale 1).");
