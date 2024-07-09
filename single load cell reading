@@ -1,40 +1,113 @@
+#include <HX711.h>
 
-#include "HX711.h"
-
-// HX711 circuit wiring
-#define LOADCELL_DOUT_PIN1  3
-#define LOADCELL_SCK_PIN    13
-#define LOADCELL_DOUT_PIN2  5
+// Define HX711 data pins for two load cells
+const int DOUT_PIN_1 = 3;
+const int SCK_PIN_1 = 13;
+const int DOUT_PIN_2 = 4; // Example, adjust as needed
+const int SCK_PIN_2 = 12;
 
 HX711 scale1;
 HX711 scale2;
 
-void setup() {
+void setupScale();
+void setupLoadCell(HX711& scale, int doutPin, int sckPin);
+float readWeight(HX711& scale);
+
+void setup() 
+{
   Serial.begin(9600);
-  
-  // Initialize the first HX711 module
-  scale1.begin(LOADCELL_DOUT_PIN1, LOADCELL_SCK_PIN);
-  // Initialize the second HX711 module
-  scale2.begin(LOADCELL_DOUT_PIN2, LOADCELL_SCK_PIN);
+  setupScale();
 }
 
-void loop() {
-  if (scale1.is_ready()) {
-    long reading1 = scale1.read();
-    Serial.print("Reading 1: ");
-      Serial.println(((reading1-16041.9135)/103.3376)*9.8);
-    //Serial.println(reading1);
-  } else {
-    Serial.println("HX711 not found (scale 1).");
+void loop() 
+{
+  float reading1 = readWeight(scale1); // Read weight from first load cell
+  float reading2 = readWeight(scale2); // Read weight from second load cell
+
+  // Print time and weights in separate lines for CSV compatibility
+  Serial.print(millis());
+  Serial.print(",");
+  Serial.print(reading1);
+  Serial.print(",");
+  Serial.println(reading2);
+
+  // Optional delay for stability
+  // delay(100); // Adjust delay as needed
+}
+
+void setupScale()
+{
+  Serial.println("\n\nCALIBRATION\n===========");
+
+  // Setup for load cell 1
+  setupLoadCell(scale1, DOUT_PIN_1, SCK_PIN_1);
+
+  // Setup for load cell 2
+  setupLoadCell(scale2, DOUT_PIN_2, SCK_PIN_2);
+}
+
+void setupLoadCell(HX711& scale, int doutPin, int sckPin)
+{
+  Serial.println((&scale == &scale1) ? "1" : "2");
+  Serial.println("Remove all weight from the load cell");
+
+  // Flush serial input
+  while (Serial.available())
+    Serial.read();
+
+  while (Serial.available() == 0);
+
+  Serial.println("Determining zero weight offset");
+  scale.begin(doutPin, sckPin);
+  scale.tare(20); // Average 20 measurements
+  double offset = scale.get_offset();
+
+  Serial.print("OFFSET: ");
+  Serial.println(offset);
+  Serial.println();
+
+  Serial.println("Place a weight on the load cell");
+
+  // Flush serial input
+  while (Serial.available())
+    Serial.read();
+
+  Serial.println("Enter the weight in (whole) grams and press enter");
+  uint32_t weight = 0;
+
+  while (Serial.peek() != '\n')
+  {
+    if (Serial.available())
+    {
+      char ch = Serial.read();
+      if (isdigit(ch))
+      {
+        weight *= 10;
+        weight += (ch - '0');
+      }
+    }
   }
-  
-  /*if (scale2.is_ready()) {
-    long reading2 = scale2.read();
-    Serial.print("Reading 2: ");
-    Serial.println(reading2);
-  } else {
-    Serial.println("HX711 not found (scale 2).");
-  }*/
- 
-  delay(1000); // Wait for a second
+
+  Serial.print("WEIGHT: ");
+  Serial.println(weight);
+  scale.calibrate_scale(weight, 20);
+  float scaling_factor = scale.get_scale();
+
+  Serial.print("SCALE:  ");
+  Serial.println(scaling_factor, 6);
+
+  Serial.print("\nUse scale.set_offset(");
+  Serial.print(offset);
+  Serial.print("); and scale.set_scale(");
+  Serial.print(scaling_factor, 6);
+  Serial.println("); in the setup of your project\n");
+
+  // Set offset and scale for the current instance
+  scale.set_offset(offset);
+  scale.set_scale(scaling_factor);
+}
+
+float readWeight(HX711& scale)
+{
+  return scale.get_units(5); // Read weight with 5 samples for stability
 }
