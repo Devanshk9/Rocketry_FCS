@@ -37,7 +37,6 @@ void setup() {
   LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
   LoRa.setSignalBandwidth(LORA_SIGNAL_BANDWIDTH);
 
-  Serial.println("LoRa initialized.");
   sensorData.Vx = 0;
   sensorData.Vy = 0;
   sensorData.Vz = 0;
