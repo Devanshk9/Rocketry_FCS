@@ -44,14 +44,12 @@ void setup() {
   sensorData.Ox = 0;
   sensorData.Oy = 0;
   sensorData.Oz = 0;
-  Serial.println("time,Accx,Accy,Accz,Vx,Vy,Vz,Ox,Oy,Oz,pressure,Temp,altitude,servo_angle");
 }
 
 void loop() {
   // Try to parse packet
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
-    Serial.println("Packet received!");
 
     // Read packet data into the defined array
     for (int i = 0; i < packetSize && i < sizeof(receivedData); i++) {
