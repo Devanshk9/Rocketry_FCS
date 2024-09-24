@@ -1,0 +1,115 @@
+#include <SPI.h>
+#include <LoRa.h>
+
+// Define LoRa settings based on your setup (adjust frequency if needed)
+#define LORA_FREQUENCY 433E6
+#define LORA_SYNC_WORD 0x12
+#define LORA_SPREADING_FACTOR 12
+#define LORA_SIGNAL_BANDWIDTH 250E3
+
+// Define data structure to match expected sensor data format (modify based on actual data)
+struct SensorData {
+  int16_t Vx;
+  int16_t Vy;
+  int16_t Vz;
+  int16_t V;
+  int16_t Ox;
+  int16_t Oy;
+  int16_t Oz;
+  int prevTime;
+} sensorData;
+
+// Define an array to store received data
+uint8_t receivedData[24]; // Adjusted size to 24 bytes based on expected data
+
+void setup() {
+  Serial.begin(9600);
+  while (!Serial); // Wait for serial port to connect (required for native USB port)
+
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(LORA_FREQUENCY)) {
+    Serial.println("Starting LoRa failed!");
+    while (1); // Infinite loop to halt execution if initialization fails
+  }
+
+  // Set LoRa parameters
+  LoRa.setSyncWord(LORA_SYNC_WORD);
+  LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
+  LoRa.setSignalBandwidth(LORA_SIGNAL_BANDWIDTH);
+
+  Serial.println("LoRa initialized.");
+  sensorData.Vx = 0;
+  sensorData.Vy = 0;
+  sensorData.Vz = 0;
+  sensorData.Ox = 0;
+  sensorData.Oy = 0;
+  sensorData.Oz = 0;
+  Serial.println("time,Accx,Accy,Accz,Vx,Vy,Vz,Ox,Oy,Oz,pressure,Temp,altitude,servo_angle");
+}
+
+void loop() {
+  // Try to parse packet
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    Serial.println("Packet received!");
+
+    // Read packet data into the defined array
+    for (int i = 0; i < packetSize && i < sizeof(receivedData); i++) {
+      receivedData[i] = LoRa.read();
+    }
+
+    // Extract sensor data from received byte array using the defined structure
+    int16_t acceleration_x = (receivedData[0] << 8) | receivedData[1];
+    int16_t acceleration_y = (receivedData[2] << 8) | receivedData[3];
+    int16_t acceleration_z = (receivedData[4] << 8) | receivedData[5];
+    int16_t gyro_x = (receivedData[6] << 8) | receivedData[7];
+    int16_t gyro_y = (receivedData[8] << 8) | receivedData[9];
+    int16_t gyro_z = (receivedData[10] << 8) | receivedData[11];
+    int16_t temperature = (receivedData[12] << 8) | receivedData[13];
+    int16_t pressure = (receivedData[14] << 24) | (receivedData[15] << 16) | (receivedData[16] << 8) | receivedData[17];
+    int16_t altitude_cm = (receivedData[18] << 24) | (receivedData[19] << 16) | (receivedData[20] << 8) | receivedData[21];
+    int16_t servo_rotation = (receivedData[22] << 8) | receivedData[23];
+
+    int currTime = millis();
+    sensorData.Vx = sensorData.Vx + acceleration_x * (currTime - sensorData.prevTime);
+    sensorData.Vy = sensorData.Vy + acceleration_y * (currTime - sensorData.prevTime);
+    sensorData.Vz = sensorData.Vz + acceleration_z * (currTime - sensorData.prevTime);
+    sensorData.V = sqrt(sensorData.Vx * sensorData.Vx + sensorData.Vy * sensorData.Vy + sensorData.Vz * sensorData.Vz);
+    sensorData.Ox = sensorData.Ox + gyro_x * (currTime - sensorData.prevTime);
+    sensorData.Oy = sensorData.Oy + gyro_y * (currTime - sensorData.prevTime);
+    sensorData.Oz = sensorData.Oz + gyro_z * (currTime - sensorData.prevTime);
+    sensorData.prevTime = currTime;
+
+    // Now you have individual sensor readings in separate variables within the 'sensorData' structure
+    // You can use these values for further processing, visualization, or data logging as needed
+
+    // Example: Print sensor data
+    Serial.print(currTime);
+    Serial.print(",");
+    Serial.print(acceleration_x);
+    Serial.print(",");
+    Serial.print(acceleration_y);
+    Serial.print(",");
+    Serial.print(acceleration_z);
+    Serial.print(",");
+    Serial.print(sensorData.Vx);
+    Serial.print(",");
+    Serial.print(sensorData.Vy);
+    Serial.print(",");
+    Serial.print(sensorData.Vz);
+    Serial.print(",");
+    Serial.print(sensorData.Ox);
+    Serial.print(",");
+    Serial.print(sensorData.Oy);
+    Serial.print(",");
+    Serial.print(sensorData.Oz);
+    Serial.print(",");
+    Serial.print(temperature);
+    Serial.print(",");
+    Serial.print(pressure);
+    Serial.print(",");
+    Serial.print(altitude_cm);
+    Serial.print(",");
+    Serial.println(servo_rotation);
+  }
+}
