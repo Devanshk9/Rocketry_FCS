@@ -1,24 +1,93 @@
-// Variables for previous acceleration and time tracking
-float prevAx = 0, prevAy = 0, prevAz = 0;
-unsigned long prevTime = 0;
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085.h>
+#include <Adafruit_MPU6050.h>
+#include <SPI.h>
+#include <LoRa.h>
+#include <Servo.h>
+
+// Create objects for BMP180 and MPU6050 sensors
+Adafruit_BMP085 bmp;
+Adafruit_MPU6050 mpu;
+Servo myServo;
+
+// Constants for standard sea level pressure and altitude at Bengaluru
+#define BENGALURU_LOCAL_PRESSURE_HPA 950.0 // Estimated local pressure at Bengaluru in hPa
+
+// Variables for altitude tracking
+float maxAltitude = 0.0; // Variable to store maximum altitude reached
+int servoRotation = 90; // Variable to store the current servo angle
+float altitude_m = 0;
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+  Wire.begin();
+  
+  // Initialize BMP180
+  if (!bmp.begin()) {
+    Serial.println("Could not find a valid BMP180 sensor, check wiring or address!");
+    while (1);
+  }
+  Serial.println("BMP180 sensor found and initialized.");
+
+  // Initialize MPU6050
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip, check wiring or address!");
+    while (1);
+  } else {
+    Serial.println("MPU6050 sensor found!");
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  }
+  
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(8);
+  LoRa.setSpreadingFactor(12);
+  LoRa.setSignalBandwidth(150E3);
+  Serial.println("LoRa initialized.");
+
+  // Attach servo to pin 9
+  myServo.attach(5);
+
+  // Start servo at 90 degrees
+  myServo.write(servoRotation);
+  
+  delay(1000); // Delay to allow servo to reach initial position
+}
+
+// Global velocity variables
+float Vx = 0.0; // Current velocity in X
+float Vy = 0.0; // Current velocity in Y
+float Vz = 0.0; // Current velocity in Z
+unsigned long lastTime = 0; // To track time
 
 void loop() {
   // Update current time and time difference
   unsigned long currentTime = millis();
-  float deltaTime = (currentTime - prevTime) / 1000.0; // Convert to seconds
+ float dt = (currentTime - lastTime) / 1000.0; // Convert milliseconds to seconds
+  lastTime = currentTime;
 
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
-
-  // Current acceleration data
+  
+  // Instantaneous acceleration
   float Ax = a.acceleration.x;
   float Ay = a.acceleration.y;
   float Az = a.acceleration.z;
 
-  // Calculate velocity from acceleration and time difference
-  float Vx = prevAx + Ax * deltaTime;
-  float Vy = prevAy + Ay * deltaTime;
-  float Vz = prevAz + Az * deltaTime;
+  // Update velocities using the acceleration and the time interval
+  Vx += Ax * dt;
+  Vy += Ay * dt;
+  Vz += Az * dt;
+
   float V = sqrt(pow(Vx, 2) + pow(Vy, 2) + pow(Vz, 2)); // Magnitude of velocity
 
   // Calculate orientation (gyro data)
