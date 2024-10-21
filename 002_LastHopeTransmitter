@@ -17,7 +17,12 @@ Servo myServo;
 // Variables for altitude tracking
 float maxAltitude = 0.0; // Variable to store maximum altitude reached
 int servoRotation = 90; // Variable to store the current servo angle
-float altitude_m = 0;
+
+// Global velocity variables
+float Vx = 0.0; // Current velocity in X
+float Vy = 0.0; // Current velocity in Y
+float Vz = 0.0; // Current velocity in Z
+unsigned long lastTime = 0; // To track time
 
 void setup() {
   // Start serial communication for debugging
@@ -54,25 +59,16 @@ void setup() {
   LoRa.setSignalBandwidth(150E3);
   Serial.println("LoRa initialized.");
 
-  // Attach servo to pin 9
+  // Attach servo to pin 5
   myServo.attach(5);
-
-  // Start servo at 90 degrees
   myServo.write(servoRotation);
-  
   delay(1000); // Delay to allow servo to reach initial position
 }
-
-// Global velocity variables
-float Vx = 0.0; // Current velocity in X
-float Vy = 0.0; // Current velocity in Y
-float Vz = 0.0; // Current velocity in Z
-unsigned long lastTime = 0; // To track time
 
 void loop() {
   // Update current time and time difference
   unsigned long currentTime = millis();
- float dt = (currentTime - lastTime) / 1000.0; // Convert milliseconds to seconds
+  float dt = (currentTime - lastTime) / 1000.0; // Convert milliseconds to seconds
   lastTime = currentTime;
 
   sensors_event_t a, g, temp;
@@ -88,8 +84,6 @@ void loop() {
   Vy += Ay * dt;
   Vz += Az * dt;
 
-  float V = sqrt(pow(Vx, 2) + pow(Vy, 2) + pow(Vz, 2)); // Magnitude of velocity
-
   // Calculate orientation (gyro data)
   float Ox = g.gyro.x;
   float Oy = g.gyro.y;
@@ -102,7 +96,7 @@ void loop() {
   long altitude_cm = altitude_m * 100;
 
   // Prepare data array with velocities, accelerations, orientation, and other data
-  uint8_t data[28];
+  uint8_t data[24]; // Ensure the size matches the number of values sent
   
   // Store velocities
   data[0] = (int16_t(Vx * 100) >> 8) & 0xFF;
@@ -140,12 +134,6 @@ void loop() {
   LoRa.beginPacket();
   LoRa.write(data, sizeof(data));
   LoRa.endPacket();
-
-  // Store current accelerations and time for next iteration
-  prevAx = Ax;
-  prevAy = Ay;
-  prevAz = Az;
-  prevTime = currentTime;
 
   Serial.println("Data sent!");
 }
