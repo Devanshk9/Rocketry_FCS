@@ -17,7 +17,7 @@ Servo myServo;
 // Variables for altitude tracking
 float maxAltitude = 0.0; // Variable to store maximum altitude reached
 int servoRotation = 90; // Variable to store the current servo angle
-float altitude_m=0;
+float altitude_m = 0;
 
 void setup() {
   // Start serial communication for debugging
@@ -64,68 +64,82 @@ void setup() {
 }
 
 void loop() {
- 
   mpu_data();
-
   Altitude();
-
   
   sensors_event_t a, g, temp;
-   mpu.getEvent(&a, &g, &temp);
-  // Prepare data for transmission
-  int ax = a.acceleration.x * 100; // Convert to int with scaling
-  int ay = a.acceleration.y * 100;
-  int az = a.acceleration.z * 100;
-  int gx = g.gyro.x * 100;
-  int gy = g.gyro.y * 100;
-  int gz = g.gyro.z * 100;
-  int temp1 = temp.temperature * 100;
-  long pr = bmp.readPressure();
-  int temp2 = bmp.readTemperature() * 100;
-  int Temp = (temp1 + temp2) / 2;
+  mpu.getEvent(&a, &g, &temp);
+  
+  // Prepare velocity (accelerometer data)
+  float Vx = a.acceleration.x;
+  float Vy = a.acceleration.y;
+  float Vz = a.acceleration.z;
+  float V = sqrt(pow(Vx, 2) + pow(Vy, 2) + pow(Vz, 2)); // Magnitude of velocity vector
+  
+  // Prepare acceleration data
+  float Ax = a.acceleration.x;
+  float Ay = a.acceleration.y;
+  float Az = a.acceleration.z;
+  float A = sqrt(pow(Ax, 2) + pow(Ay, 2) + pow(Az, 2)); // Magnitude of acceleration vector
+  
+  // Prepare orientation (gyro data)
+  float Ox = g.gyro.x;
+  float Oy = g.gyro.y;
+  float Oz = g.gyro.z;
+  
+  // Prepare other data
+  float altitude_m = bmp.readAltitude(BENGALURU_LOCAL_PRESSURE_HPA);
+  float pressure = bmp.readPressure();
+  float temperature = bmp.readTemperature();
+  
   long altitude_cm = altitude_m * 100; // Convert meters to centimeters for better precision
+  unsigned long currentTime = millis(); // Time since program started
 
   // Create a data array
   uint8_t data[28];
-  
-  // Fill data array with sensor readings
-  data[0] = (ax >> 8) & 0xFF;
-  data[1] = ax & 0xFF;
-  data[2] = (ay >> 8) & 0xFF;
-  data[3] = ay & 0xFF;
-  data[4] = (az >> 8) & 0xFF;
-  data[5] = az & 0xFF;
-  data[6] = (gx >> 8) & 0xFF;
-  data[7] = gx & 0xFF;
-  data[8] = (gy >> 8) & 0xFF;
-  data[9] = gy & 0xFF;
-  data[10] = (gz >> 8) & 0xFF;
-  data[11] = gz & 0xFF;
-  data[12] = (Temp >> 8) & 0xFF;
-  data[13] = Temp & 0xFF;
-  data[14] = (pr >> 24) & 0xFF;
-  data[15] = (pr >> 16) & 0xFF;
-  data[16] = (pr >> 8) & 0xFF;
-  data[17] = pr & 0xFF;
-  data[18] = (altitude_cm >> 24) & 0xFF;
-  data[19] = (altitude_cm >> 16) & 0xFF;
-  data[20] = (altitude_cm >> 8) & 0xFF;
-  data[21] = altitude_cm & 0xFF;
-  data[22] = (servoRotation >> 8) & 0xFF;
-  data[23] = servoRotation & 0xFF;
 
-  Serial.print("Data array: ");
-  for (int i = 0; i < 24; i++) {
-    Serial.print(data[i]);
-    Serial.print(" ");
-  }
-  Serial.println();
+  // Fill data array with sensor readings
+  // Velocities
+  data[0] = (int16_t(Vx * 100) >> 8) & 0xFF;
+  data[1] = int16_t(Vx * 100) & 0xFF;
+  data[2] = (int16_t(Vy * 100) >> 8) & 0xFF;
+  data[3] = int16_t(Vy * 100) & 0xFF;
+  data[4] = (int16_t(Vz * 100) >> 8) & 0xFF;
+  data[5] = int16_t(Vz * 100) & 0xFF;
+  data[6] = (int16_t(V * 100) >> 8) & 0xFF;
+  data[7] = int16_t(V * 100) & 0xFF;
+
+  // Acceleration
+  data[8] = (int16_t(Ax * 100) >> 8) & 0xFF;
+  data[9] = int16_t(Ax * 100) & 0xFF;
+  data[10] = (int16_t(Ay * 100) >> 8) & 0xFF;
+  data[11] = int16_t(Ay * 100) & 0xFF;
+  data[12] = (int16_t(Az * 100) >> 8) & 0xFF;
+  data[13] = int16_t(Az * 100) & 0xFF;
+  data[14] = (int16_t(A * 100) >> 8) & 0xFF;
+  data[15] = int16_t(A * 100) & 0xFF;
+
+  // Orientation
+  data[16] = (int16_t(Ox * 100) >> 8) & 0xFF;
+  data[17] = int16_t(Ox * 100) & 0xFF;
+  data[18] = (int16_t(Oy * 100) >> 8) & 0xFF;
+  data[19] = int16_t(Oy * 100) & 0xFF;
+  data[20] = (int16_t(Oz * 100) >> 8) & 0xFF;
+  data[21] = int16_t(Oz * 100) & 0xFF;
+
+  // Altitude
+  data[22] = (altitude_cm >> 8) & 0xFF;
+  data[23] = altitude_cm & 0xFF;
+
+  // Temperature and Pressure
+  data[24] = (int16_t(temperature * 100) >> 8) & 0xFF;
+  data[25] = int16_t(temperature * 100) & 0xFF;
+  data[26] = (pressure >> 8) & 0xFF;
+  data[27] = pressure & 0xFF;
 
   // Send data array via LoRa
   LoRa.beginPacket();
   LoRa.write(data, sizeof(data));
   LoRa.endPacket();
   Serial.println("Data sent!");
-
-  
 }
