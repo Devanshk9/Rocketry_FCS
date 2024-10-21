@@ -1,26 +1,26 @@
 #include <SPI.h>
 #include <LoRa.h>
 
-// Define LoRa settings based on your setup (adjust frequency if needed)
+// Define LoRa settings
 #define LORA_FREQUENCY 433E6
 #define LORA_SYNC_WORD 0x12
 #define LORA_SPREADING_FACTOR 12
 #define LORA_SIGNAL_BANDWIDTH 250E3
 
-// Define data structure to match expected sensor data format (modify based on actual data)
+// Define data structure to match the new sensor data format
 struct SensorData {
-  int16_t Vx;
-  int16_t Vy;
-  int16_t Vz;
-  int16_t V;
-  int16_t Ox;
-  int16_t Oy;
-  int16_t Oz;
-  int prevTime;
+  int16_t Vx, Vy, Vz, V;
+  int16_t Ax, Ay, Az, A;
+  int16_t Ox, Oy, Oz;
+  int16_t altitude;
+  int16_t temperature;
+  int32_t pressure;
+  unsigned long timestamp;
+  int16_t timeMilliSeconds;
 } sensorData;
 
-// Define an array to store received data
-uint8_t receivedData[24]; // Adjusted size to 24 bytes based on expected data
+// Array to store received data
+uint8_t receivedData[28];  // Adjusted size to match the structure
 
 void setup() {
   Serial.begin(9600);
@@ -37,76 +37,82 @@ void setup() {
   LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
   LoRa.setSignalBandwidth(LORA_SIGNAL_BANDWIDTH);
 
-  sensorData.Vx = 0;
-  sensorData.Vy = 0;
-  sensorData.Vz = 0;
-  sensorData.Ox = 0;
-  sensorData.Oy = 0;
-  sensorData.Oz = 0;
+  // Initialize sensor data
+  sensorData = {0};
 }
 
 void loop() {
   // Try to parse packet
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
-
-    // Read packet data into the defined array
+    // Read packet data into the array
     for (int i = 0; i < packetSize && i < sizeof(receivedData); i++) {
       receivedData[i] = LoRa.read();
     }
 
-    // Extract sensor data from received byte array using the defined structure
-    int16_t acceleration_x = (receivedData[0] << 8) | receivedData[1];
-    int16_t acceleration_y = (receivedData[2] << 8) | receivedData[3];
-    int16_t acceleration_z = (receivedData[4] << 8) | receivedData[5];
-    int16_t gyro_x = (receivedData[6] << 8) | receivedData[7];
-    int16_t gyro_y = (receivedData[8] << 8) | receivedData[9];
-    int16_t gyro_z = (receivedData[10] << 8) | receivedData[11];
-    int16_t temperature = (receivedData[12] << 8) | receivedData[13];
-    int16_t pressure = (receivedData[14] << 24) | (receivedData[15] << 16) | (receivedData[16] << 8) | receivedData[17];
-    int16_t altitude_cm = (receivedData[18] << 24) | (receivedData[19] << 16) | (receivedData[20] << 8) | receivedData[21];
-    int16_t servo_rotation = (receivedData[22] << 8) | receivedData[23];
+    // Extract sensor data from the received byte array
+    
+    // Velocities
+    sensorData.Vx = (receivedData[0] << 8) | receivedData[1];
+    sensorData.Vy = (receivedData[2] << 8) | receivedData[3];
+    sensorData.Vz = (receivedData[4] << 8) | receivedData[5];
+    sensorData.V  = (receivedData[6] << 8) | receivedData[7];
 
-    int currTime = millis();
-    sensorData.Vx = sensorData.Vx + acceleration_x * (currTime - sensorData.prevTime);
-    sensorData.Vy = sensorData.Vy + acceleration_y * (currTime - sensorData.prevTime);
-    sensorData.Vz = sensorData.Vz + acceleration_z * (currTime - sensorData.prevTime);
-    sensorData.V = sqrt(sensorData.Vx * sensorData.Vx + sensorData.Vy * sensorData.Vy + sensorData.Vz * sensorData.Vz);
-    sensorData.Ox = sensorData.Ox + gyro_x * (currTime - sensorData.prevTime);
-    sensorData.Oy = sensorData.Oy + gyro_y * (currTime - sensorData.prevTime);
-    sensorData.Oz = sensorData.Oz + gyro_z * (currTime - sensorData.prevTime);
-    sensorData.prevTime = currTime;
+    // Acceleration
+    sensorData.Ax = (receivedData[8] << 8) | receivedData[9];
+    sensorData.Ay = (receivedData[10] << 8) | receivedData[11];
+    sensorData.Az = (receivedData[12] << 8) | receivedData[13];
+    sensorData.A  = (receivedData[14] << 8) | receivedData[15];
 
-    // Now you have individual sensor readings in separate variables within the 'sensorData' structure
-    // You can use these values for further processing, visualization, or data logging as needed
+    // Orientation
+    sensorData.Ox = (receivedData[16] << 8) | receivedData[17];
+    sensorData.Oy = (receivedData[18] << 8) | receivedData[19];
+    sensorData.Oz = (receivedData[20] << 8) | receivedData[21];
+
+    // Altitude, Temperature, Pressure
+    sensorData.altitude = (receivedData[22] << 8) | receivedData[23];
+    sensorData.temperature = (receivedData[24] << 8) | receivedData[25];
+    sensorData.pressure = (receivedData[26] << 8) | receivedData[27];
+
+    // Time values
+    sensorData.timeMilliSeconds = millis();
 
     // Example: Print sensor data
-    Serial.print(currTime);
-    Serial.print(",");
-    Serial.print(acceleration_x);
-    Serial.print(",");
-    Serial.print(acceleration_y);
-    Serial.print(",");
-    Serial.print(acceleration_z);
-    Serial.print(",");
+    Serial.print("Velocities: Vx=");
     Serial.print(sensorData.Vx);
-    Serial.print(",");
+    Serial.print(", Vy=");
     Serial.print(sensorData.Vy);
-    Serial.print(",");
+    Serial.print(", Vz=");
     Serial.print(sensorData.Vz);
-    Serial.print(",");
+    Serial.print(", V=");
+    Serial.println(sensorData.V);
+
+    Serial.print("Acceleration: Ax=");
+    Serial.print(sensorData.Ax);
+    Serial.print(", Ay=");
+    Serial.print(sensorData.Ay);
+    Serial.print(", Az=");
+    Serial.print(sensorData.Az);
+    Serial.print(", A=");
+    Serial.println(sensorData.A);
+
+    Serial.print("Orientation: Ox=");
     Serial.print(sensorData.Ox);
-    Serial.print(",");
+    Serial.print(", Oy=");
     Serial.print(sensorData.Oy);
-    Serial.print(",");
-    Serial.print(sensorData.Oz);
-    Serial.print(",");
-    Serial.print(temperature);
-    Serial.print(",");
-    Serial.print(pressure);
-    Serial.print(",");
-    Serial.print(altitude_cm);
-    Serial.print(",");
-    Serial.println(servo_rotation);
+    Serial.print(", Oz=");
+    Serial.println(sensorData.Oz);
+
+    Serial.print("Altitude: ");
+    Serial.println(sensorData.altitude);
+    
+    Serial.print("Temperature: ");
+    Serial.println(sensorData.temperature);
+    
+    Serial.print("Pressure: ");
+    Serial.println(sensorData.pressure);
+
+    Serial.print("Timestamp (ms): ");
+    Serial.println(sensorData.timeMilliSeconds);
   }
 }
