@@ -1,0 +1,31 @@
+//YET TO BE TESTED
+#include "HX711.h"
+
+// HX711 circuit wiring for the single Load Cell
+#define LOADCELL_DOUT_PIN 3
+#define LOADCELL_SCK_PIN 13
+
+HX711 scale;
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Initialize the HX711 module for the load cell
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+}
+
+void loop() {
+  // Check if the load cell is ready
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    
+    // Print the raw reading (adjust scaling/calibration as needed for accurate values)
+    Serial.print("Weight/Force Reading: ");
+    Serial.println(reading);
+    
+  } else {
+    Serial.println("HX711 not found.");
+  }
+  
+  delay(1000); // Adjust delay as needed for stability
+}
