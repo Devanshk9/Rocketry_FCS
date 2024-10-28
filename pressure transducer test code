@@ -1,0 +1,25 @@
+// Pressure transducer setup
+const int pressurePin = A0;           // Analog input pin for the transducer
+const float sensorMin = 0.5;          // Min voltage for 0 psi
+const float sensorMax = 4.5;          // Max voltage for full scale (e.g., 150 psi)
+const float pressureMin = 0;          // Min pressure the transducer can measure
+const float pressureMax = 150;        // Max pressure the transducer can measure (e.g., 150 psi)
+//change pressureMin & pressureMax acc to the ttransducer used
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  int sensorValue = analogRead(pressurePin);
+  float voltage = sensorValue * (5.0 / 1023.0);
+
+  // Convert voltage to pressure
+  float pressure = ((voltage - sensorMin) * (pressureMax - pressureMin)) / (sensorMax - sensorMin) + pressureMin;
+
+  // Display the pressure in psi
+  Serial.print("Chamber Pressure: ");
+  Serial.print(pressure, 2); // Display with 2 decimal places
+  Serial.println(" psi");
+
+  delay(1000); // Wait for a second
+}
