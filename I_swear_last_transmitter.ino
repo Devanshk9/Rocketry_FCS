@@ -1,0 +1,139 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085.h>
+#include <Adafruit_MPU6050.h>
+#include <SPI.h>
+#include <LoRa.h>
+#include <Servo.h>
+
+// Create objects for BMP180 and MPU6050 sensors
+Adafruit_BMP085 bmp;
+Adafruit_MPU6050 mpu;
+Servo myServo;
+
+// Constants for standard sea level pressure and altitude at Bengaluru
+#define BENGALURU_LOCAL_PRESSURE_HPA 950.0 // Estimated local pressure at Bengaluru in hPa
+
+// Variables for altitude tracking
+float maxAltitude = 0.0; // Variable to store maximum altitude reached
+int servoRotation = 90; // Variable to store the current servo angle
+
+// Global velocity variables
+float Vx = 0.0; // Current velocity in X
+float Vy = 0.0; // Current velocity in Y
+float Vz = 0.0; // Current velocity in Z
+unsigned long lastTime = 0; // To track time
+
+void setup() {
+  // Start serial communication for debugging
+  Serial.begin(9600);
+  Wire.begin();
+  
+  // Initialize BMP180
+  if (!bmp.begin()) {
+    Serial.println("Could not find a valid BMP180 sensor, check wiring or address!");
+    while (1);
+  }
+  Serial.println("BMP180 sensor found and initialized.");
+
+  // Initialize MPU6050
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip, check wiring or address!");
+    while (1);
+  } else {
+    Serial.println("MPU6050 sensor found!");
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  }
+  
+  // Initialize LoRa
+  Serial.println("Initializing LoRa...");
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  LoRa.setSyncWord(0x77);
+  LoRa.setCodingRate4(8);
+  LoRa.setSpreadingFactor(12);
+  LoRa.setSignalBandwidth(150E3);
+  Serial.println("LoRa initialized.");
+
+  // Attach servo to pin 5
+  myServo.attach(5);
+  myServo.write(servoRotation);
+  delay(1000); // Delay to allow servo to reach initial position
+}
+
+void loop() {
+  // Update current time and time difference
+  unsigned long currentTime = millis();
+  float dt = (currentTime - lastTime) / 1000.0; // Convert milliseconds to seconds
+  lastTime = currentTime;
+
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+  
+  // Instantaneous acceleration
+  float Ax = a.acceleration.x;
+  float Ay = a.acceleration.y;
+  float Az = a.acceleration.z;
+
+  // Update velocities using the acceleration and the time interval
+  Vx += Ax * dt;
+  Vy += Ay * dt;
+  Vz += Az * dt;
+
+  // Calculate orientation (gyro data)
+  float Ox = g.gyro.x;
+  float Oy = g.gyro.y;
+  float Oz = g.gyro.z;
+
+  // Read altitude, pressure, and temperature
+  float altitude_m = bmp.readAltitude(BENGALURU_LOCAL_PRESSURE_HPA);
+  float pressure = bmp.readPressure();
+  float temperature = bmp.readTemperature();
+  long altitude_cm = altitude_m * 100;
+
+  // Prepare data array with velocities, accelerations, orientation, and other data
+  uint8_t data[24]; // Ensure the size matches the number of values sent
+  
+  // Store velocities
+  data[0] = (int16_t(Vx * 100) >> 8) & 0xFF;
+  data[1] = int16_t(Vx * 100) & 0xFF;
+  data[2] = (int16_t(Vy * 100) >> 8) & 0xFF;
+  data[3] = int16_t(Vy * 100) & 0xFF;
+  data[4] = (int16_t(Vz * 100) >> 8) & 0xFF;
+  data[5] = int16_t(Vz * 100) & 0xFF;
+
+  // Store acceleration
+  data[6] = (int16_t(Ax * 100) >> 8) & 0xFF;
+  data[7] = int16_t(Ax * 100) & 0xFF;
+  data[8] = (int16_t(Ay * 100) >> 8) & 0xFF;
+  data[9] = int16_t(Ay * 100) & 0xFF;
+  data[10] = (int16_t(Az * 100) >> 8) & 0xFF;
+  data[11] = int16_t(Az * 100) & 0xFF;
+
+  // Orientation
+  data[12] = (int16_t(Ox * 100) >> 8) & 0xFF;
+  data[13] = int16_t(Ox * 100) & 0xFF;
+  data[14] = (int16_t(Oy * 100) >> 8) & 0xFF;
+  data[15] = int16_t(Oy * 100) & 0xFF;
+  data[16] = (int16_t(Oz * 100) >> 8) & 0xFF;
+  data[17] = int16_t(Oz * 100) & 0xFF;
+
+  // Altitude, temperature, and pressure
+  data[18] = (altitude_cm >> 8) & 0xFF;
+  data[19] = altitude_cm & 0xFF;
+  data[20] = (int16_t(temperature * 100) >> 8) & 0xFF;
+  data[21] = int16_t(temperature * 100) & 0xFF;
+  data[22] = (int16_t(pressure * 100) >> 8) & 0xFF;
+  data[23] = int16_t(pressure * 100) & 0xFF;
+
+  // Send data via LoRa
+  LoRa.beginPacket();
+  LoRa.write(data, sizeof(data));
+  LoRa.endPacket();
+
+  Serial.println("Data sent!");
+}
