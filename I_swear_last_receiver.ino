@@ -103,9 +103,7 @@ void loop() {
     Serial.print(sensorData.temperature);
     
     Serial.print(",");
-    Serial.print(sensorData.pressure);
-
-    Serial.println(",");
+    Serial.println(sensorData.pressure);
     // Serial.println(sensorData.timeMilliSeconds);
   }
 }
