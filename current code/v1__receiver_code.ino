@@ -21,9 +21,6 @@ void setup() {
   LoRa.setSyncWord(LORA_SYNC_WORD);
   LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
   LoRa.setSignalBandwidth(LORA_SIGNAL_BANDWIDTH);
-
-  // Initialize sensor data
-  sensorData = {0};
 }
 
 void loop() {
